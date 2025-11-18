@@ -1,20 +1,21 @@
 use std::rc::Rc;
 
+#[derive(Default)]
 pub struct Doc {
-    includes: Vec<String>,
-    modules: Vec<Modules>,
+    pub includes: Vec<String>,
+    pub modules: Vec<Module>,
 }
-pub struct Modules {
-    name: String,
-    records: Vec<Record>,
+pub struct Module {
+    pub name: String,
+    pub records: Vec<Class>,
 }
-pub struct Record {
-    name: String,
-    fields: Vec<Field>,
+pub struct Class {
+    pub name: String,
+    pub fields: Vec<Field>,
 }
 pub struct Field {
-    name: String,
-    _type: Type,
+    pub name: String,
+    pub _type: Type,
 }
 
 pub enum Type {
@@ -26,7 +27,7 @@ pub enum Type {
     Double,
     UString,
     Buffer,
-    Record { name: String, namespace: String },
+    Class { name: String, namespace: String },
     Vector(Rc<Type>),
     Map(Rc<Type>, Rc<Type>),
 }

@@ -1,15 +1,16 @@
 use crate::compiler::{lexer::Lexer, token::Token};
+use std::collections::VecDeque;
 
 #[derive(Debug)]
 pub struct StateMachine {
     lex: Lexer,
-    tokens: Vec<Token>,
+    tokens: VecDeque<Token>,
 }
 impl StateMachine {
     pub fn new(lex: Lexer) -> Self {
         Self {
             lex,
-            tokens: Vec::new(),
+            tokens: VecDeque::new(),
         }
     }
     pub fn start(&mut self) {
@@ -34,7 +35,7 @@ impl StateMachine {
                 }
                 Some(token) if Token::from_str(&token.to_string()).is_some() => {
                     self.tokens
-                        .push(Token::from_str(&token.to_string()).unwrap());
+                        .push_back(Token::from_str(&token.to_string()).unwrap());
                 }
                 Some('"') => {
                     self.lex.ignore();
@@ -44,7 +45,7 @@ impl StateMachine {
                     self.process_identifier();
                 }
                 None => {
-                    self.tokens.push(Token::EOF);
+                    self.tokens.push_back(Token::EOF);
                     return;
                 }
                 Some(x) => {
@@ -62,7 +63,7 @@ impl StateMachine {
             && x != '\n'
         {}
         self.tokens
-            .push(Token::SingleLineComment(self.lex.emit_token()));
+            .push_back(Token::SingleLineComment(self.lex.emit_token()));
     }
 
     // we will keep the single line text as it is leading //
@@ -73,7 +74,7 @@ impl StateMachine {
                     Some('/') => {
                         // this will contain the '*' at the end
                         self.tokens
-                            .push(Token::MultiLineComment(self.lex.emit_token()));
+                            .push_back(Token::MultiLineComment(self.lex.emit_token()));
                         return;
                     }
                     _ => self.lex.move_back(),
@@ -92,7 +93,8 @@ impl StateMachine {
                 }
                 '"' => {
                     self.lex.move_back();
-                    self.tokens.push(Token::QuotedString(self.lex.emit_token()));
+                    self.tokens
+                        .push_back(Token::QuotedString(self.lex.emit_token()));
                     self.lex.next();
                     return;
                 }
@@ -113,10 +115,13 @@ impl StateMachine {
         println!("token value : : {}", token_value);
         // if token is some kind of identifier
         if let Some(token) = Token::from_str(&token_value) {
-            self.tokens.push(token);
+            self.tokens.push_back(token);
         } else {
-            self.tokens.push(Token::Identifier(token_value));
+            self.tokens.push_back(Token::Identifier(token_value));
         }
+    }
+    pub fn next_token(&mut self) -> Option<Token> {
+        self.tokens.pop_front()
     }
 }
 

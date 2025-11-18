@@ -1,12 +1,9 @@
-use crate::compiler::token::Token;
-
 #[derive(Debug)]
 pub struct Lexer {
     input: String,
     start: usize,
     pos: usize,
     width: usize,
-    tokens: Vec<Token>,
 }
 
 impl Lexer {
@@ -16,7 +13,6 @@ impl Lexer {
             start: 0,
             pos: 0,
             width: 0,
-            tokens: Vec::new(),
         }
     }
     pub fn next(&mut self) -> Option<char> {
@@ -46,6 +42,4 @@ impl Lexer {
         self.move_back();
         self.ignore();
     }
-
-    // now we will implement the state machine for this
 }

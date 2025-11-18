@@ -1,4 +1,7 @@
-#[derive(Debug)]
+use crate::compiler::ast::{Field, Type};
+use std::error::Error;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Token {
     Error(String),
     SingleLineComment(String),
@@ -51,6 +54,18 @@ impl Token {
             "{" => Some(Token::RCurrelyBrace),
             "}" => Some(Token::RCurrelyBrace),
             _ => None,
+        }
+    }
+    pub fn to_premitive_type(&self) -> Result<Type, Box<dyn Error>> {
+        match self {
+            Token::Int => Ok(Type::Int),
+            Token::LongInt => Ok(Type::Long),
+            Token::Float => Ok(Type::Float),
+            Token::Double => Ok(Type::Double),
+            Token::Byte => Ok(Type::Byte),
+            Token::Buffer => Ok(Type::Buffer),
+            Token::Bool => Ok(Type::Boolean),
+            _ => Err("Token not convertable to Non premitive".into()),
         }
     }
 }
