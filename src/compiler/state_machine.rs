@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 #[derive(Debug)]
 pub struct StateMachine {
     lex: Lexer,
-    tokens: VecDeque<Token>,
+    pub tokens: VecDeque<Token>,
 }
 impl StateMachine {
     pub fn new(lex: Lexer) -> Self {
@@ -17,7 +17,6 @@ impl StateMachine {
         loop {
             self.lex.ignore_whitespace();
             let current_char = self.lex.next();
-            println!("{:?}", current_char);
             match current_char {
                 Some('/') => {
                     let next_char = self.lex.next().expect("File Ended with unexpected token /");
@@ -104,7 +103,6 @@ impl StateMachine {
         panic!("Unterminated quoted string");
     }
     fn process_identifier(&mut self) {
-        println!("inside process identifier");
         while let Some(val) = self.lex.next()
             && (val.is_alphanumeric() || val == '.' || val == '_')
         {}
@@ -112,7 +110,6 @@ impl StateMachine {
         // char is not alpha numric so we will move back from the last char processed
         self.lex.move_back();
         let token_value = self.lex.emit_token();
-        println!("token value : : {}", token_value);
         // if token is some kind of identifier
         if let Some(token) = Token::from_str(&token_value) {
             self.tokens.push_back(token);

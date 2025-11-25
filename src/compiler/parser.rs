@@ -4,7 +4,7 @@ use crate::compiler::{
     state_machine::StateMachine,
     token::Token,
 };
-use std::{error::Error, rc::Rc};
+use std::error::Error;
 
 pub struct Parser {
     name: String,
@@ -16,9 +16,13 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(name: String, input: String) -> Self {
+        let mut sm = StateMachine::new(Lexer::new(input));
+        sm.start();
+
+        println!("tokens : {:?}", sm.tokens);
         Parser {
             name,
-            sm: StateMachine::new(Lexer::new(input)),
+            sm,
             peek_count: 0,
             namespace: "".to_string(),
             tokens: [None, None],
@@ -36,7 +40,7 @@ impl Parser {
     }
     fn peek(&mut self) -> &Option<Token> {
         if self.peek_count > 0 {
-            return &self.tokens[self.peek_count - 2];
+            return &self.tokens[self.peek_count - 1];
         }
         self.peek_count = 1;
         self.tokens[0] = self.next_token();
@@ -48,6 +52,7 @@ impl Parser {
         } else {
             self.tokens[0] = self.next_token();
         }
+        println!("Consuming {:?}", self.tokens[self.peek_count]);
         self.tokens[self.peek_count].take()
     }
     // helper function for expect
@@ -79,7 +84,11 @@ impl Parser {
             Some(Token::Vector) => self.parse_vector(),
             Some(Token::Map) => self.parse_map(),
             Some(Token::EOF) => Err("Unexpected end of file".into()),
-            Some(x) => x.to_premitive_type(),
+            Some(x) => {
+                let tor = x.to_premitive_type();
+                self.next();
+                tor
+            }
             None => Err("Token not Found".into()),
         }
     }
@@ -88,7 +97,7 @@ impl Parser {
         self.expect(Token::LAngleBrace)?;
         let t1 = self.parse_type()?;
         self.expect(Token::RAngleBrace)?;
-        Ok(Type::Vector(Rc::new(t1)))
+        Ok(Type::Vector(Box::new(t1)))
     }
     fn parse_map(&mut self) -> Result<Type, Box<dyn Error>> {
         self.expect(Token::Map)?;
@@ -97,7 +106,7 @@ impl Parser {
         self.expect(Token::Comma)?;
         let t2 = self.parse_type()?;
         self.expect(Token::RAngleBrace)?;
-        Ok(Type::Map(Rc::new(t1), Rc::new(t2)))
+        Ok(Type::Map(Box::new(t1), Box::new(t2)))
     }
     fn parse_class_ref(&mut self) -> Result<Type, Box<dyn Error>> {
         let ident_val = self.expect_identifier()?;
@@ -186,8 +195,12 @@ impl Parser {
                         tor_doc.includes.push(val);
                     }
                 }
-                Some(Token::Module) => {}
-                _ => panic!("Tokens Ended other that EOF token"),
+                Some(Token::Module) => {
+                    if let Ok(val) = self.parse_module() {
+                        tor_doc.modules.push(val);
+                    }
+                }
+                x => panic!("Tokens Ended other than EOF token {:?}", x),
             }
         }
         Ok(tor_doc)

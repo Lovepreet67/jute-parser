@@ -51,7 +51,7 @@ impl Token {
             "," => Some(Token::Comma),
             "<" => Some(Token::LAngleBrace),
             ">" => Some(Token::RAngleBrace),
-            "{" => Some(Token::RCurrelyBrace),
+            "{" => Some(Token::LCurrelyBrace),
             "}" => Some(Token::RCurrelyBrace),
             _ => None,
         }
@@ -65,6 +65,7 @@ impl Token {
             Token::Byte => Ok(Type::Byte),
             Token::Buffer => Ok(Type::Buffer),
             Token::Bool => Ok(Type::Boolean),
+            Token::RString => Ok(Type::UString),
             _ => Err("Token not convertable to Non premitive".into()),
         }
     }
