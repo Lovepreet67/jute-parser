@@ -1,4 +1,4 @@
-module org.apache.zookeeper.proto {
+module proto {
     class ConnectRequest {
         int protocolVersion;
         long lastZxidSeen;

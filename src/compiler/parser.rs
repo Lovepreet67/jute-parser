@@ -19,7 +19,6 @@ impl Parser {
         let mut sm = StateMachine::new(Lexer::new(input));
         sm.start();
 
-        println!("tokens : {:?}", sm.tokens);
         Parser {
             name,
             sm,
@@ -52,7 +51,6 @@ impl Parser {
         } else {
             self.tokens[0] = self.next_token();
         }
-        println!("Consuming {:?}", self.tokens[self.peek_count]);
         self.tokens[self.peek_count].take()
     }
     // helper function for expect

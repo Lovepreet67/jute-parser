@@ -1,0 +1,152 @@
+Doc
+    includes:
+    modules:
+        Module: org.apache.zookeeper.proto
+            Class: ConnectRequest
+                Field: protocolVersion -> Int
+                Field: lastZxidSeen -> Long
+                Field: timeOut -> Int
+                Field: sessionId -> Long
+                Field: passwd -> Buffer
+                Field: readOnly -> Boolean
+            Class: ConnectResponse
+                Field: protocolVersion -> Int
+                Field: timeOut -> Int
+                Field: sessionId -> Long
+                Field: passwd -> Buffer
+                Field: readOnly -> Boolean
+            Class: SetWatches
+                Field: relativeZxid -> Long
+                Field: dataWatches -> Vector<UString>
+                Field: existWatches -> Vector<UString>
+                Field: childWatches -> Vector<UString>
+            Class: SetWatches2
+                Field: relativeZxid -> Long
+                Field: dataWatches -> Vector<UString>
+                Field: existWatches -> Vector<UString>
+                Field: childWatches -> Vector<UString>
+                Field: persistentWatches -> Vector<UString>
+                Field: persistentRecursiveWatches -> Vector<UString>
+            Class: RequestHeader
+                Field: xid -> Int
+                Field: type -> Int
+            Class: MultiHeader
+                Field: type -> Int
+                Field: done -> Boolean
+                Field: err -> Int
+            Class: AuthPacket
+                Field: type -> Int
+                Field: scheme -> UString
+                Field: auth -> Buffer
+            Class: ReplyHeader
+                Field: xid -> Int
+                Field: zxid -> Long
+                Field: err -> Int
+            Class: GetDataRequest
+                Field: path -> UString
+                Field: watch -> Boolean
+            Class: SetDataRequest
+                Field: path -> UString
+                Field: data -> Buffer
+                Field: version -> Int
+            Class: ReconfigRequest
+                Field: joiningServers -> UString
+                Field: leavingServers -> UString
+                Field: newMembers -> UString
+                Field: curConfigId -> Long
+            Class: SetDataResponse
+                Field: stat -> Class(org.apache.zookeeper.data::Stat)
+            Class: GetSASLRequest
+                Field: token -> Buffer
+            Class: SetSASLRequest
+                Field: token -> Buffer
+            Class: SetSASLResponse
+                Field: token -> Buffer
+            Class: CreateRequest
+                Field: path -> UString
+                Field: data -> Buffer
+                Field: acl -> Vector<Class(org.apache.zookeeper.data::ACL)>
+                Field: flags -> Int
+            Class: CreateTTLRequest
+                Field: path -> UString
+                Field: data -> Buffer
+                Field: acl -> Vector<Class(org.apache.zookeeper.data::ACL)>
+                Field: flags -> Int
+                Field: ttl -> Long
+            Class: DeleteRequest
+                Field: path -> UString
+                Field: version -> Int
+            Class: GetChildrenRequest
+                Field: path -> UString
+                Field: watch -> Boolean
+            Class: GetAllChildrenNumberRequest
+                Field: path -> UString
+            Class: GetChildren2Request
+                Field: path -> UString
+                Field: watch -> Boolean
+            Class: CheckVersionRequest
+                Field: path -> UString
+                Field: version -> Int
+            Class: GetMaxChildrenRequest
+                Field: path -> UString
+            Class: GetMaxChildrenResponse
+                Field: max -> Int
+            Class: SetMaxChildrenRequest
+                Field: path -> UString
+                Field: max -> Int
+            Class: SyncRequest
+                Field: path -> UString
+            Class: SyncResponse
+                Field: path -> UString
+            Class: GetACLRequest
+                Field: path -> UString
+            Class: SetACLRequest
+                Field: path -> UString
+                Field: acl -> Vector<Class(org.apache.zookeeper.data::ACL)>
+                Field: version -> Int
+            Class: SetACLResponse
+                Field: stat -> Class(org.apache.zookeeper.data::Stat)
+            Class: AddWatchRequest
+                Field: path -> UString
+                Field: mode -> Int
+            Class: WatcherEvent
+                Field: type -> Int
+                Field: state -> Int
+                Field: path -> UString
+            Class: ErrorResponse
+                Field: err -> Int
+            Class: CreateResponse
+                Field: path -> UString
+            Class: Create2Response
+                Field: path -> UString
+                Field: stat -> Class(org.apache.zookeeper.data::Stat)
+            Class: ExistsRequest
+                Field: path -> UString
+                Field: watch -> Boolean
+            Class: ExistsResponse
+                Field: stat -> Class(org.apache.zookeeper.data::Stat)
+            Class: GetDataResponse
+                Field: data -> Buffer
+                Field: stat -> Class(org.apache.zookeeper.data::Stat)
+            Class: GetChildrenResponse
+                Field: children -> Vector<UString>
+            Class: GetAllChildrenNumberResponse
+                Field: totalNumber -> Int
+            Class: GetChildren2Response
+                Field: children -> Vector<UString>
+                Field: stat -> Class(org.apache.zookeeper.data::Stat)
+            Class: GetACLResponse
+                Field: acl -> Vector<Class(org.apache.zookeeper.data::ACL)>
+                Field: stat -> Class(org.apache.zookeeper.data::Stat)
+            Class: CheckWatchesRequest
+                Field: path -> UString
+                Field: type -> Int
+            Class: RemoveWatchesRequest
+                Field: path -> UString
+                Field: type -> Int
+            Class: GetEphemeralsRequest
+                Field: prefixPath -> UString
+            Class: GetEphemeralsResponse
+                Field: ephemerals -> Vector<UString>
+            Class: WhoAmIResponse
+                Field: clientInfo -> Vector<Class(org.apache.zookeeper.data::ClientInfo)>
