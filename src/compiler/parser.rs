@@ -182,7 +182,10 @@ impl Parser {
     }
 
     pub fn parser(&mut self) -> Result<Doc, Box<dyn Error>> {
-        let mut tor_doc = Doc::default();
+        let mut tor_doc = Doc {
+            src: self.name.clone(),
+            ..Default::default()
+        };
         loop {
             match self.peek() {
                 Some(Token::EOF) => {
