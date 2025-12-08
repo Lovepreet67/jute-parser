@@ -3,17 +3,51 @@ use crate::{
         CodeGenerator,
         rust::utilities::{get_field_name, get_field_type, get_module_name, get_record_name},
     },
-    compiler::ast::Doc,
+    compiler::ast::{Doc, Module},
 };
-use std::{error::Error, fmt::Write};
+use std::{
+    collections::{HashMap, HashSet},
+    error::Error,
+    fmt::Write,
+};
+
+struct GeneratedModule {
+    pub sub_modules: HashSet<String>,
+    pub vector_imported: bool,
+    pub hashset_imported: bool,
+    pub struct_includes: bool,
+}
 
 pub struct RustCodeGenerator {
-    doc: Doc,
+    target_dir: String,
+    modules: Vec<Module>,
+    dependency: HashMap<String, String>,
+    module_map: HashMap<String, GeneratedModule>,
 }
 
 impl RustCodeGenerator {
-    pub fn new(doc: Doc) -> Self {
-        Self { doc }
+    pub fn new(docs: Vec<Module>, dependency: HashMap<String, String>, target_dir: String) -> Self {
+        Self {
+            modules,
+            dependency,
+            target_dir,
+            module_map: HashMap::default(),
+        }
+    }
+}
+
+impl CodeGenerator for RustCodeGenerator {
+    fn generate(&mut self) -> Result<String, Box<dyn Error>> {
+        for module in self.modules {
+            let module_path: Vec<&str> = module.name.split(|c| c == '.').collect();
+            for (i, module) in module_path.iter().enumerate() {
+                let current_module = module_path[0..i].join("/");
+                if self.module_map.contains_key(&current_module) {
+                    // means module is already there we just check
+                }
+            }
+        }
+        Ok("".to_string())
     }
 }
 

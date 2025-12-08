@@ -1,4 +1,4 @@
-use crate::compiler::build_ast;
+use crate::compiler::{ast::Module, build_ast, dependency_resolver::resolve_dependencies};
 use std::{error::Error, path::Path};
 
 pub mod code_generator;
@@ -38,8 +38,11 @@ impl JuteGenerator {
             let doc = build_ast(Path::new(&file));
             docs.push(doc);
         }
+        let dependencies = resolve_dependencies(&docs)?;
+        let merged_modules: Vec<Module> =
+            docs.into_iter().map(|doc| doc.modules).flatten().collect();
         // now we have a array of docs now we will validate this doc
-        todo!();
+
         Ok(())
     }
 }

@@ -3,11 +3,11 @@ use std::{fs, path::Path};
 
 pub mod ast;
 pub mod ast_printer;
+pub mod dependency_resolver;
 pub mod lexer;
 pub mod parser;
 pub mod state_machine;
 pub mod token;
-pub mod validator;
 
 pub fn build_ast(jute_file: &Path) -> Doc {
     // first we will read the file to string

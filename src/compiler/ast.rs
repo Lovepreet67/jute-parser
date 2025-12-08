@@ -24,16 +24,6 @@ impl Doc {
                 .into());
             }
         }
-        // it is also invalid if we have to includes some module in the same files
-        for included_module in &self.includes {
-            if module_name_set.contains(included_module) {
-                return Err(format!(
-                    "file: {}, include module {}, which is declared in the same module",
-                    self.src, included_module
-                )
-                .into());
-            }
-        }
         Ok(())
     }
 }
@@ -80,6 +70,7 @@ impl Class {
                     format!("Record {}, contain repeated field name {}", self.name, name).into(),
                 );
             }
+            // second check will be that the records in jute can't be recursive
         }
         Ok(())
     }
