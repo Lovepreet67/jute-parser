@@ -1,0 +1,29 @@
+module proto.connect {
+    class ConnectRequest {
+        int protocolVersion;
+        long lastZxidSeen;
+        int timeOut;
+        long sessionId;
+        buffer passwd;
+        boolean readOnly;
+    }
+    class ConnectResponse {
+        int protocolVersion;
+        int timeOut;
+        long sessionId;
+        buffer passwd;
+        boolean readOnly;
+    }
+}
+module proto {
+    class RequestHeader {
+        int xid;
+        int type;
+    }
+    class MultiHeader {
+        int type;
+        boolean done;
+        int err;
+    }
+}
+    

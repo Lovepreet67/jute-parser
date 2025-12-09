@@ -1,0 +1,11 @@
+module proto.connect.req {
+    class Request {
+        int protocolVersion;
+        long lastZxidSeen;
+        int timeOut;
+        long sessionId;
+        buffer passwd;
+        boolean readOnly;
+    }
+}
+    

@@ -1,4 +1,7 @@
-use crate::compiler::{ast::Module, build_ast, dependency_resolver::resolve_dependencies};
+use crate::{
+    code_generator::{CodeGenerator, rust::writer::RustCodeGenerator},
+    compiler::{ast::Module, build_ast, dependency_resolver::resolve_dependencies},
+};
 use std::{error::Error, path::Path};
 
 pub mod code_generator;
@@ -42,7 +45,12 @@ impl JuteGenerator {
         let merged_modules: Vec<Module> =
             docs.into_iter().map(|doc| doc.modules).flatten().collect();
         // now we have a array of docs now we will validate this doc
-
+        RustCodeGenerator::new(
+            merged_modules,
+            dependencies,
+            self.out_dir.unwrap_or("".to_string()),
+        )
+        .generate();
         Ok(())
     }
 }
@@ -50,18 +58,13 @@ impl JuteGenerator {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::compiler::{ast_printer::AstPrinter, parser::Parser};
-    use std::fs;
     #[test]
     fn root_test() {
         // first we will read the file to string
-        let source = fs::read_to_string("./test.jute").unwrap();
-        println!("source : {}", source);
-        let ast = Parser::new("".to_string(), source)
-            .parser()
-            .expect("Error while generating ast");
-        println!("Generated ast successfully");
-        let mut ast_printer = AstPrinter::new();
-        ast_printer.print_doc(&ast);
+        let jg = JuteGenerator::new();
+        jg.add_src_file("./jute_test_schema/test1.jute".to_string())
+            .add_src_file("./jute_test_schema/test2.jute".to_string())
+            .generate()
+            .unwrap();
     }
 }
