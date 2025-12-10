@@ -5,6 +5,7 @@ use std::{
 
 use crate::compiler::ast::{Doc, Type};
 
+// function will check if the type specified valid or not
 fn is_valid_type(
     t: &Type,
     include_docs: &Vec<&Doc>,
@@ -13,6 +14,7 @@ fn is_valid_type(
     dependency_map: &mut HashMap<String, String>,
 ) -> Result<(), Box<dyn Error>> {
     match t {
+        // all primitive types are allways valid
         Type::Boolean
         | Type::Byte
         | Type::Int
@@ -21,6 +23,7 @@ fn is_valid_type(
         | Type::Double
         | Type::UString
         | Type::Buffer => Ok(()),
+        // vector will be valid only if its inner type is valid
         Type::Vector(inner_t) => is_valid_type(
             &inner_t,
             include_docs,
@@ -28,6 +31,7 @@ fn is_valid_type(
             parrent_record,
             dependency_map,
         ),
+        // map will be valid if both key and value fields are valid
         Type::Map(inner_t1, inner_t2) => {
             is_valid_type(
                 inner_t1,
@@ -45,6 +49,7 @@ fn is_valid_type(
             )?;
             Ok(())
         }
+        // class will be valid only if it is present in the included modules or current module
         Type::Class { name, namespace } => {
             if namespace.is_empty() {
                 let mut match_count = 0;
@@ -59,7 +64,7 @@ fn is_valid_type(
                                     .push(format!("{}.{}", module.name, record.name));
 
                                 dependency_map.insert(
-                                    format!("{}.{}", parrent_record, name),
+                                    format!("{}..{}", parrent_record, name),
                                     format!("{}.{}", module.name, record.name),
                                 );
                                 match_count += 1;
@@ -178,7 +183,15 @@ fn topological_sort(adj_list: &HashMap<String, Vec<String>>) -> Result<(), Box<d
         }
     }
     if !inorder.is_empty() {
-        return Err("Curcullar dependency found".into());
+        return Err(format!(
+            "Curcullar dependency found for modules {}",
+            inorder
+                .into_iter()
+                .map(|(key, _value)| key.to_string())
+                .collect::<Vec<String>>()
+                .join(",")
+        )
+        .into());
     }
     Ok(())
 }

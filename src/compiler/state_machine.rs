@@ -48,10 +48,7 @@ impl StateMachine {
                     return;
                 }
                 Some(x) => {
-                    panic!(
-                        "Unexpexted character {x} found
-                "
-                    )
+                    panic!("Unexpexted character {x} found")
                 }
             }
         }
@@ -126,12 +123,11 @@ impl StateMachine {
 mod test {
     use super::*;
     use std::fs::read_to_string;
+    // TODO: update this test
     #[test]
     pub fn test_tokenizer() {
         // read file from the test directory
         let input = read_to_string("./test.jute").unwrap();
-        eprint!("input read");
-        eprintln!("{}", input);
         let lexer = Lexer::new(input);
         let mut sm = StateMachine::new(lexer);
         sm.start();

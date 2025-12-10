@@ -42,6 +42,7 @@ impl JuteGenerator {
             docs.push(doc);
         }
         let dependencies = resolve_dependencies(&docs)?;
+        eprint!("dependencies {:?}", dependencies);
         let merged_modules: Vec<Module> =
             docs.into_iter().map(|doc| doc.modules).flatten().collect();
         // now we have a array of docs now we will validate this doc
@@ -50,7 +51,7 @@ impl JuteGenerator {
             dependencies,
             self.out_dir.unwrap_or("".to_string()),
         )
-        .generate();
+        .generate()?;
         Ok(())
     }
 }
@@ -64,6 +65,7 @@ mod test {
         let jg = JuteGenerator::new();
         jg.add_src_file("./jute_test_schema/test1.jute".to_string())
             .add_src_file("./jute_test_schema/test2.jute".to_string())
+            .add_out_dir("generated".to_string())
             .generate()
             .unwrap();
     }

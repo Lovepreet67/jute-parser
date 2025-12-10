@@ -26,4 +26,28 @@ module proto {
         int err;
     }
 }
+
+
+module Test {
+    class RequestHeaderTest {
+        int xid;
+        int type;
+    }
+    class MultiHeader {
+        int type;
+        boolean done;
+        int err;
+    }
+}
+module Test.Test {
+    class RequestHeader {
+        int xid;
+        int type;
+    }
+    class MultiHeader {
+        int type;
+        boolean done;
+        int err;
+    }
+}
     

@@ -8,8 +8,7 @@ pub struct Doc {
 }
 
 impl Doc {
-    // it validate that this file alone doesn't include the same modules and include statement
-    // doesn't contain module present in the file
+    // it checks if the single doc contain same modules more than one time and all modules are valid
     pub fn validate(&self) -> Result<(), Box<dyn Error>> {
         let mut module_name_set = HashSet::new();
         for module in &self.modules {
@@ -35,7 +34,7 @@ pub struct Module {
 }
 
 impl Module {
-    // this will validate that the record is valid in its own
+    // this will validate that the module is valid in its own (all records are valid and no record name repeated)
     pub fn validate(&self) -> Result<(), Box<dyn Error>> {
         let mut record_name_set = HashSet::new();
         for class in &self.records {
@@ -60,7 +59,7 @@ pub struct Class {
 }
 
 impl Class {
-    // this will validate that the record is valid in its own
+    // this will validate that the record is valid in its own (field names are not repeated) field type validation is not done
     pub fn validate(&self) -> Result<(), Box<dyn Error>> {
         // to validate this we will just check if the field names are repeating or not
         let mut field_name_set = HashSet::new();

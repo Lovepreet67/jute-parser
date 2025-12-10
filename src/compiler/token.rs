@@ -1,4 +1,4 @@
-use crate::compiler::ast::{Field, Type};
+use crate::compiler::ast::Type;
 use std::error::Error;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]

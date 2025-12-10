@@ -1,33 +1,80 @@
 use crate::{
     code_generator::{
         CodeGenerator,
-        rust::utilities::{get_field_name, get_field_type, get_module_name, get_record_name},
+        rust::utilities::{get_field_name, get_module_name, get_record_name},
     },
-    compiler::ast::{Class, Module},
+    compiler::ast::{Class, Module, Type},
 };
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::Write,
+    fmt::{Write, format},
     fs, io,
     path::PathBuf,
 };
 
 struct GeneratedModule {
+    pub name: String,
     pub file_path: PathBuf,
     pub sub_modules: HashSet<String>,
-    pub vector_imported: bool,
-    pub hashset_imported: bool,
-    pub struct_includes: HashSet<String>,
 }
 impl GeneratedModule {
-    pub fn new(location: PathBuf) -> Self {
+    pub fn new(name: String, location: PathBuf) -> Self {
         Self {
+            name,
             file_path: location,
             sub_modules: Default::default(),
-            vector_imported: false,
-            hashset_imported: false,
-            struct_includes: Default::default(),
+        }
+    }
+    // TODO: This function signature should be changed
+    pub fn get_field_type(
+        &mut self,
+        jute_type: &Type,
+        dependency_map: &HashMap<String, String>,
+        target_dir: &str,
+        record_name: &str,
+    ) -> Cow<'static, str> {
+        match jute_type {
+            Type::Int => Cow::Borrowed("i32"),
+            Type::Long => Cow::Borrowed("i64"),
+            Type::Float => Cow::Borrowed("f32"),
+            Type::Double => Cow::Borrowed("f64"),
+            Type::Boolean => Cow::Borrowed("bool"),
+            Type::Byte => Cow::Borrowed("u8"),
+            Type::Buffer => Cow::Borrowed("std::vec::Vec<u8>"),
+            Type::UString => Cow::Borrowed("String"),
+            Type::Class { name, namespace } => {
+                println!(
+                    "checking for key : {}",
+                    format!("{}.{}.{}.{}", self.name, record_name, namespace, name)
+                );
+                let resloved_path = dependency_map
+                    .get(&format!(
+                        "{}.{}.{}.{}",
+                        self.name, record_name, namespace, name
+                    ))
+                    .unwrap();
+                let mut path = format!("crate");
+                if !target_dir.is_empty() {
+                    path.push_str("::");
+                    path.push_str(target_dir);
+                }
+                for item in resloved_path.split(".") {
+                    path.push_str("::");
+                    path.push_str(item);
+                }
+                Cow::Owned(path)
+            }
+            Type::Vector(t) => Cow::Owned(format!(
+                "std::vec::Vec<{}>",
+                self.get_field_type(t, dependency_map, target_dir, record_name)
+            )),
+            Type::Map(t1, t2) => Cow::Owned(format!(
+                "std::collections::Hashmap<{},{}>",
+                self.get_field_type(t1, dependency_map, target_dir, record_name),
+                self.get_field_type(t2, dependency_map, target_dir, record_name)
+            )),
         }
     }
     pub fn insert_submodule(&mut self, submodule_name: &str) {
@@ -42,7 +89,12 @@ impl GeneratedModule {
             self.sub_modules.insert(submodule_name.to_string());
         }
     }
-    pub fn insert_record(&mut self, record: &Class) -> Result<(), Box<dyn Error>> {
+    pub fn insert_record(
+        &mut self,
+        record: &Class,
+        dependency_map: &HashMap<String, String>,
+        target_dir: &str,
+    ) -> Result<(), Box<dyn Error>> {
         let mut code = String::new();
         code.push_str("/*This is a auto generated code based on the jute file provided*/\n");
         writeln!(
@@ -55,7 +107,7 @@ impl GeneratedModule {
                 code,
                 "\t\tpub {} : {},",
                 get_field_name(&field.name),
-                get_field_type(&field._type)
+                self.get_field_type(&field._type, dependency_map, target_dir, &record.name)
             )?
         }
         writeln!(code, "\t}}")?;
@@ -66,14 +118,14 @@ impl GeneratedModule {
                 code,
                 "\t\tpub fn get_{}(&self)->{}{{\n\t\t\tself.{}.clone()\n\t\t}}",
                 get_field_name(&field.name),
-                get_field_type(&field._type),
+                self.get_field_type(&field._type, dependency_map, target_dir, &record.name),
                 get_field_name(&field.name)
             )?;
             writeln!(
                 code,
                 "\t\tpub fn set_{}(&mut self,val: {}){{\n\t\t\tself.{} = val\n\t\t}}",
                 get_field_name(&field.name),
-                get_field_type(&field._type),
+                self.get_field_type(&field._type, dependency_map, target_dir, &record.name),
                 get_field_name(&field.name)
             )?;
         }
@@ -106,7 +158,7 @@ impl GeneratedModule {
                 code,
                 "\t\t\t\t {} : {}::deserialize(bytes)?,",
                 get_field_name(&field.name),
-                get_field_type(&field._type)
+                self.get_field_type(&field._type, dependency_map, target_dir, &record.name)
             )?;
         }
         writeln!(code, "\t\t\t}}")?;
@@ -138,7 +190,7 @@ impl RustCodeGenerator {
         Self {
             modules,
             dependency,
-            target_dir,
+            target_dir: target_dir,
             module_map: HashMap::default(),
         }
     }
@@ -152,7 +204,11 @@ impl CodeGenerator for RustCodeGenerator {
                 let current_module = module_path[0..i + 1].join("/");
                 if !self.module_map.contains_key(&current_module) {
                     // means module is already there we just check
-                    let mut location = PathBuf::from(current_module.clone());
+                    let mut location = PathBuf::from(format!(
+                        "src/{}/{}",
+                        self.target_dir,
+                        current_module.clone()
+                    ));
                     // first we will create a dir
                     fs::create_dir_all(&location).unwrap();
                     let mod_location = location.join("mod.rs");
@@ -161,8 +217,10 @@ impl CodeGenerator for RustCodeGenerator {
                         .write(true)
                         .open(&mod_location)
                         .unwrap();
-                    self.module_map
-                        .insert(current_module.clone(), GeneratedModule::new(mod_location));
+                    self.module_map.insert(
+                        current_module.clone(),
+                        GeneratedModule::new(module_path[0..i + 1].join("."), mod_location),
+                    );
                 }
                 let parrent_module = module_path[0..i].join("/");
                 if !parrent_module.is_empty() {
@@ -174,7 +232,7 @@ impl CodeGenerator for RustCodeGenerator {
             let curr_generated_module = self.module_map.get_mut(&module_path.join("/")).unwrap();
             // now we will import each struct in the module
             for record in &module.records {
-                curr_generated_module.insert_record(record)?;
+                curr_generated_module.insert_record(record, &self.dependency, &self.target_dir)?;
             }
         }
         Ok("".to_string())
@@ -205,33 +263,5 @@ mod test {
     // }
 
     #[test]
-    fn test_debug() {
-        let module = "a.b.c".to_string();
-        let module_path: Vec<&str> = module.split(|c| c == '.').collect();
-        let mut module_map = HashMap::new();
-        for (i, module) in module_path.iter().enumerate() {
-            let current_module = module_path[0..i + 1].join("/");
-            println!("current module : {}", current_module);
-            if !module_map.contains_key(&current_module) {
-                // means module is already there we just check
-                let mut location = PathBuf::from(current_module.clone());
-                // first we will create a dir
-                fs::create_dir_all(&location).unwrap();
-                let mod_location = location.join("mod.rs");
-                println!("location with mod : {:?}", mod_location);
-                fs::OpenOptions::new()
-                    .create(true)
-                    .write(true)
-                    .open(&mod_location)
-                    .unwrap();
-                module_map.insert(current_module.clone(), GeneratedModule::new(mod_location));
-            }
-            let parrent_module = module_path[0..i].join("/");
-            if !parrent_module.is_empty() {
-                let generated_parrent_module = module_map.get_mut(&parrent_module).unwrap();
-                generated_parrent_module.insert_submodule(&current_module);
-            }
-            println!("parrent module : {}", parrent_module);
-        }
-    }
+    fn test_debug() {}
 }

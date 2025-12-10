@@ -12,7 +12,7 @@ pub mod token;
 pub fn build_ast(jute_file: &Path) -> Doc {
     // first we will read the file to string
     let source = fs::read_to_string(jute_file).unwrap();
-    Parser::new("".to_string(), source)
-        .parser()
+    Parser::new(jute_file.to_string_lossy().into(), source)
+        .parse()
         .expect("Error while generating ast")
 }

@@ -7,24 +7,21 @@ use crate::compiler::{
 use std::error::Error;
 
 pub struct Parser {
-    name: String,
+    src_file_location: String,
     sm: StateMachine,
-    peek_count: usize,
     namespace: String,
-    tokens: [Option<Token>; 2],
+    next_token: Option<Token>,
 }
 
 impl Parser {
-    pub fn new(name: String, input: String) -> Self {
+    pub fn new(src_file_location: String, input: String) -> Self {
         let mut sm = StateMachine::new(Lexer::new(input));
         sm.start();
-
         Parser {
-            name,
+            src_file_location,
             sm,
-            peek_count: 0,
             namespace: "".to_string(),
-            tokens: [None, None],
+            next_token: None,
         }
     }
     // same as next token from the state machine it just skip the comment tokens
@@ -38,20 +35,17 @@ impl Parser {
         None
     }
     fn peek(&mut self) -> &Option<Token> {
-        if self.peek_count > 0 {
-            return &self.tokens[self.peek_count - 1];
+        if self.next_token.is_some() {
+            return &self.next_token;
         }
-        self.peek_count = 1;
-        self.tokens[0] = self.next_token();
-        &self.tokens[0]
+        self.next_token = self.next_token();
+        &self.next_token
     }
     fn next(&mut self) -> Option<Token> {
-        if self.peek_count > 0 {
-            self.peek_count -= 1;
-        } else {
-            self.tokens[0] = self.next_token();
+        if self.next_token.is_none() {
+            self.next_token = self.next_token();
         }
-        self.tokens[self.peek_count].take()
+        self.next_token.take()
     }
     // helper function for expect
 
@@ -65,6 +59,7 @@ impl Parser {
     fn expect_identifier(&mut self) -> Result<String, Box<dyn Error>> {
         match self.next() {
             Some(Token::Identifier(x)) => Ok(x),
+            Some(Token::QuotedString(x)) => Ok(x),
             x => Err(format!("Error happend expexted identifier, found {:?}", x).into()),
         }
     }
@@ -181,9 +176,9 @@ impl Parser {
         Ok(md)
     }
 
-    pub fn parser(&mut self) -> Result<Doc, Box<dyn Error>> {
+    pub fn parse(&mut self) -> Result<Doc, Box<dyn Error>> {
         let mut tor_doc = Doc {
-            src: self.name.clone(),
+            src: self.src_file_location.clone(),
             ..Default::default()
         };
         loop {
@@ -195,6 +190,7 @@ impl Parser {
                     if let Ok(val) = self.parse_include() {
                         tor_doc.includes.push(val);
                     }
+                    self.expect(Token::Semicolon)?
                 }
                 Some(Token::Module) => {
                     if let Ok(val) = self.parse_module() {
