@@ -1,4 +1,7 @@
-use crate::compiler::{lexer::Lexer, token::Token};
+use crate::{
+    compiler::{lexer::Lexer, token::Token},
+    errors::JuteError,
+};
 use std::collections::VecDeque;
 
 #[derive(Debug)]
@@ -13,7 +16,7 @@ impl StateMachine {
             tokens: VecDeque::new(),
         }
     }
-    pub fn start(&mut self) {
+    pub fn start(&mut self) -> Result<(), JuteError> {
         loop {
             self.lex.ignore_whitespace();
             let current_char = self.lex.next();
@@ -25,30 +28,33 @@ impl StateMachine {
                             self.process_single_line_comment();
                         }
                         '*' => {
-                            self.process_multi_line_comment();
+                            self.process_multi_line_comment()?;
                         }
                         x => {
-                            panic!("Unexpected token {x} found");
+                            return Err(JuteError::UnexpectedChar { c: x, message: "Unexpected character found in a line starting from / (should be single or multiline comment)".into() })
                         }
                     }
                 }
                 Some(token) if Token::from_str(&token.to_string()).is_some() => {
                     self.tokens
-                        .push_back(Token::from_str(&token.to_string()).unwrap());
+                        .push_back(Token::from_str(&token.to_string()).unwrap()); // unwrap will never be called since this is checked already
                 }
                 Some('"') => {
                     self.lex.ignore();
-                    self.process_quoted_text();
+                    self.process_quoted_text()?;
                 }
                 Some(letter) if letter.is_ascii() => {
                     self.process_identifier();
                 }
                 None => {
                     self.tokens.push_back(Token::EOF);
-                    return;
+                    return Ok(());
                 }
                 Some(x) => {
-                    panic!("Unexpexted character {x} found")
+                    return Err(JuteError::UnexpectedChar {
+                        c: x,
+                        message: "unexpected character found".to_string(),
+                    });
                 }
             }
         }
@@ -63,7 +69,7 @@ impl StateMachine {
     }
 
     // we will keep the single line text as it is leading //
-    fn process_multi_line_comment(&mut self) {
+    fn process_multi_line_comment(&mut self) -> Result<(), JuteError> {
         while let Some(x) = self.lex.next() {
             if x == '*' {
                 match self.lex.next() {
@@ -71,33 +77,31 @@ impl StateMachine {
                         // this will contain the '*' at the end
                         self.tokens
                             .push_back(Token::MultiLineComment(self.lex.emit_token()));
-                        return;
+                        return Ok(());
                     }
                     _ => self.lex.move_back(),
                 }
             }
         }
-        panic!("Unterminated Multiline comment");
+        return Err(JuteError::UnTerminatedMultiLineComment);
     }
 
     // qouted strings are stored without quotes
-    fn process_quoted_text(&mut self) {
+    fn process_quoted_text(&mut self) -> Result<(), JuteError> {
         while let Some(val) = self.lex.next() {
             match val {
-                '\n' => {
-                    panic!("Quoted Strings can't have new line character");
-                }
+                '\n' => return Err(JuteError::QuotedStringWithNewLineCharacter),
                 '"' => {
                     self.lex.move_back();
                     self.tokens
                         .push_back(Token::QuotedString(self.lex.emit_token()));
                     self.lex.next();
-                    return;
+                    return Ok(());
                 }
                 _ => {}
             }
         }
-        panic!("Unterminated quoted string");
+        return Err(JuteError::UnTerminatedQuotedString);
     }
     fn process_identifier(&mut self) {
         while let Some(val) = self.lex.next()
@@ -116,23 +120,5 @@ impl StateMachine {
     }
     pub fn next_token(&mut self) -> Option<Token> {
         self.tokens.pop_front()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use std::fs::read_to_string;
-    // TODO: update this test
-    #[test]
-    pub fn test_tokenizer() {
-        // read file from the test directory
-        let input = read_to_string("./test.jute").unwrap();
-        let lexer = Lexer::new(input);
-        let mut sm = StateMachine::new(lexer);
-        sm.start();
-        for token in sm.tokens {
-            println!("{:?}", token);
-        }
     }
 }

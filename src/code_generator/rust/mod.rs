@@ -1,25 +1,26 @@
 use std::{
     cmp::max,
     collections::HashMap,
-    error::Error,
     hash::Hash,
     io::{Read, Write},
 };
+
+use crate::errors::JuteError;
 
 pub mod utilities;
 pub mod writer;
 
 pub trait JuteSerializable: Sized {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>>;
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>>;
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError>;
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError>;
 }
 
 impl JuteSerializable for i32 {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         out.write_all(&self.to_be_bytes())?;
         Ok(())
     }
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut arr = [0u8; 4];
         bytes.read_exact(&mut arr)?;
         Ok(i32::from_be_bytes(arr))
@@ -27,12 +28,12 @@ impl JuteSerializable for i32 {
 }
 
 impl JuteSerializable for i64 {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         out.write_all(&self.to_be_bytes())?;
         Ok(())
     }
 
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut arr = [0u8; 8];
         bytes.read_exact(&mut arr)?;
         Ok(i64::from_be_bytes(arr))
@@ -40,11 +41,11 @@ impl JuteSerializable for i64 {
 }
 
 impl JuteSerializable for f32 {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         out.write_all(&self.to_be_bytes())?;
         Ok(())
     }
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut arr = [0u8; 4];
         bytes.read_exact(&mut arr)?;
         Ok(f32::from_be_bytes(arr))
@@ -52,12 +53,12 @@ impl JuteSerializable for f32 {
 }
 
 impl JuteSerializable for f64 {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         out.write_all(&self.to_be_bytes())?;
 
         Ok(())
     }
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut arr = [0u8; 8];
         bytes.read_exact(&mut arr)?;
         Ok(f64::from_be_bytes(arr))
@@ -65,11 +66,11 @@ impl JuteSerializable for f64 {
 }
 
 impl JuteSerializable for bool {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         out.write_all(if *self { &[0x01] } else { &[0x00] })?;
         Ok(())
     }
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut byte = [0u8; 1];
         bytes.read_exact(&mut byte)?;
         Ok(byte[0] != 0)
@@ -77,11 +78,11 @@ impl JuteSerializable for bool {
 }
 
 impl JuteSerializable for u8 {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         out.write_all(&self.to_be_bytes())?;
         Ok(())
     }
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut byte = [0u8; 1];
         bytes.read_exact(&mut byte)?;
         Ok(byte[0])
@@ -91,7 +92,7 @@ impl<T> JuteSerializable for Vec<T>
 where
     T: JuteSerializable,
 {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         let elem_count = self.len() as i32;
         out.write_all(&elem_count.to_be_bytes())?;
         for elem in self {
@@ -99,7 +100,7 @@ where
         }
         Ok(())
     }
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut arr = [0u8; 4];
         bytes.read_exact(&mut arr)?;
         let elem_count = max(i32::from_be_bytes(arr), 0) as usize;
@@ -111,13 +112,13 @@ where
     }
 }
 impl JuteSerializable for String {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         let bytes = self.as_bytes();
         out.write_all(&(bytes.len() as i32).to_be_bytes())?;
         out.write_all(bytes)?;
         Ok(())
     }
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut arr = [0u8; 4];
         bytes.read_exact(&mut arr)?;
         let elem_count = max(i32::from_be_bytes(arr), 0) as usize;
@@ -133,7 +134,7 @@ where
     T: JuteSerializable + Hash + Eq,
     U: JuteSerializable,
 {
-    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), Box<dyn Error>> {
+    fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError> {
         let elem_count = self.len() as i32;
         out.write_all(&elem_count.to_be_bytes())?;
         for (key, value) in self {
@@ -142,7 +143,7 @@ where
         }
         Ok(())
     }
-    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, Box<dyn Error>> {
+    fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError> {
         let mut arr = [0u8; 4];
         bytes.read_exact(&mut arr)?;
         let elem_count = max(i32::from_be_bytes(arr), 0) as usize;

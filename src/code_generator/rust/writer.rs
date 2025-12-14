@@ -1,15 +1,15 @@
 use crate::{
     code_generator::{
         CodeGenerator,
-        rust::utilities::{get_field_name, get_module_name, get_record_name},
+        rust::utilities::{get_field_name, get_record_name},
     },
     compiler::ast::{Class, Module, Type},
+    errors::JuteError,
 };
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
-    error::Error,
-    fmt::{Write, format},
+    fmt::Write,
     fs, io,
     path::PathBuf,
 };
@@ -45,17 +45,13 @@ impl GeneratedModule {
             Type::Buffer => Cow::Borrowed("std::vec::Vec<u8>"),
             Type::UString => Cow::Borrowed("String"),
             Type::Class { name, namespace } => {
-                println!(
-                    "checking for key : {}",
-                    format!("{}.{}.{}.{}", self.name, record_name, namespace, name)
-                );
                 let resloved_path = dependency_map
                     .get(&format!(
                         "{}.{}.{}.{}",
                         self.name, record_name, namespace, name
                     ))
                     .unwrap();
-                let mut path = format!("crate");
+                let mut path = format!("jute");
                 if !target_dir.is_empty() {
                     path.push_str("::");
                     path.push_str(target_dir);
@@ -78,7 +74,6 @@ impl GeneratedModule {
         }
     }
     pub fn insert_submodule(&mut self, submodule_name: &str) {
-        println!("inside insert module");
         if !self.sub_modules.contains(submodule_name) {
             let mut file_writer = fs::OpenOptions::new()
                 .append(true)
@@ -94,77 +89,82 @@ impl GeneratedModule {
         record: &Class,
         dependency_map: &HashMap<String, String>,
         target_dir: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), JuteError> {
         let mut code = String::new();
         code.push_str("/*This is a auto generated code based on the jute file provided*/\n");
         writeln!(
             code,
-            "\t#[derive(Default,Clone)]\n\tpub struct {} {{",
+            "#[derive(Default,Clone)]\n\tpub struct {} {{",
             get_record_name(&record.name)
         )?;
         for field in &record.fields {
             writeln!(
                 code,
-                "\t\tpub {} : {},",
+                "\tpub {} : {},",
                 get_field_name(&field.name),
                 self.get_field_type(&field._type, dependency_map, target_dir, &record.name)
             )?
         }
-        writeln!(code, "\t}}")?;
+        writeln!(code, "}}")?;
         // writing getters and setters for this
-        writeln!(code, "\timpl {} {{", get_record_name(&record.name))?;
+        writeln!(code, "impl {} {{", get_record_name(&record.name))?;
+        let mut jute_field_to_rust = HashMap::new();
         for field in &record.fields {
+            let normalized_field_name = get_field_name(&field.name);
+            let field_type =
+                self.get_field_type(&field._type, dependency_map, target_dir, &record.name);
+            jute_field_to_rust.insert(&field.name, (normalized_field_name, field_type));
             writeln!(
                 code,
-                "\t\tpub fn get_{}(&self)->{}{{\n\t\t\tself.{}.clone()\n\t\t}}",
-                get_field_name(&field.name),
-                self.get_field_type(&field._type, dependency_map, target_dir, &record.name),
-                get_field_name(&field.name)
+                "\tpub fn get_{}(&self)->{}{{\n\t\t\tself.{}.clone()\n\t\t}}",
+                jute_field_to_rust.get(&field.name).unwrap().0,
+                jute_field_to_rust.get(&field.name).unwrap().1,
+                jute_field_to_rust.get(&field.name).unwrap().0
             )?;
             writeln!(
                 code,
-                "\t\tpub fn set_{}(&mut self,val: {}){{\n\t\t\tself.{} = val\n\t\t}}",
-                get_field_name(&field.name),
-                self.get_field_type(&field._type, dependency_map, target_dir, &record.name),
-                get_field_name(&field.name)
+                "\tpub fn set_{}(&mut self,val: {}){{\n\t\t\tself.{} = val\n\t\t}}",
+                jute_field_to_rust.get(&field.name).unwrap().0,
+                jute_field_to_rust.get(&field.name).unwrap().1,
+                jute_field_to_rust.get(&field.name).unwrap().0
             )?;
         }
-        writeln!(code, "\t}}")?;
+        writeln!(code, "}}")?;
         // writing serialization and deserialization code
         writeln!(
             code,
-            "\timpl JuteSerializable for {} {{",
+            "impl jute::code_generator::rust::JuteSerializable for {} {{",
             get_record_name(&record.name)
         )?;
         writeln!(
             code,
-            "\t\tfn serailaize<W:Write>(&self, out:&mut W)->Result<(),Box<dyn Error>> {{"
+            "\tfn serailaize<W:Write>(&self, out:&mut W)->Result<(),Box<dyn Error>> {{"
         )?;
         for field in &record.fields {
             writeln!(
                 code,
-                "\t\t\tself.{}.serialize(out)?;",
-                get_field_name(&field.name)
+                "\t\tself.{}.serialize(out)?;",
+                jute_field_to_rust.get(&field.name).unwrap().0
             )?;
         }
         writeln!(code, "\t\t}}")?;
         writeln!(
             code,
-            "\t\tfn deserailaize<R:Read>( out:&mut R)->Result<Self,Box<dyn Error>> {{"
+            "\tfn deserailaize<R:Read>( out:&mut R)->Result<Self,Box<dyn Error>> {{"
         )?;
-        writeln!(code, "\t\t\tSelf {{")?;
+        writeln!(code, "\t\tSelf {{")?;
         for field in &record.fields {
             writeln!(
                 code,
-                "\t\t\t\t {} : {}::deserialize(bytes)?,",
-                get_field_name(&field.name),
-                self.get_field_type(&field._type, dependency_map, target_dir, &record.name)
+                "\t\t\t {} : {}::deserialize(bytes)?,",
+                jute_field_to_rust.get(&field.name).unwrap().0,
+                jute_field_to_rust.get(&field.name).unwrap().1,
             )?;
         }
-        writeln!(code, "\t\t\t}}")?;
         writeln!(code, "\t\t}}")?;
-
         writeln!(code, "\t}}")?;
+
+        writeln!(code, "}}")?;
         let mut file_writer = fs::OpenOptions::new()
             .append(true)
             .open(&self.file_path)
@@ -175,7 +175,7 @@ impl GeneratedModule {
 }
 
 pub struct RustCodeGenerator {
-    target_dir: String,
+    target_dir: PathBuf,
     modules: Vec<Module>,
     dependency: HashMap<String, String>,
     module_map: HashMap<String, GeneratedModule>,
@@ -185,7 +185,7 @@ impl RustCodeGenerator {
     pub fn new(
         modules: Vec<Module>,
         dependency: HashMap<String, String>,
-        target_dir: String,
+        target_dir: PathBuf,
     ) -> Self {
         Self {
             modules,
@@ -197,18 +197,16 @@ impl RustCodeGenerator {
 }
 
 impl CodeGenerator for RustCodeGenerator {
-    fn generate(&mut self) -> Result<String, Box<dyn Error>> {
+    fn generate(&mut self) -> Result<String, JuteError> {
         for module in &self.modules {
             let module_path: Vec<&str> = module.name.split(|c| c == '.').collect();
             for (i, module) in module_path.iter().enumerate() {
                 let current_module = module_path[0..i + 1].join("/");
                 if !self.module_map.contains_key(&current_module) {
                     // means module is already there we just check
-                    let mut location = PathBuf::from(format!(
-                        "src/{}/{}",
-                        self.target_dir,
-                        current_module.clone()
-                    ));
+                    let mut location = PathBuf::from("src");
+                    location.push(&self.target_dir);
+                    location.push(&current_module);
                     // first we will create a dir
                     fs::create_dir_all(&location).unwrap();
                     let mod_location = location.join("mod.rs");
@@ -232,36 +230,13 @@ impl CodeGenerator for RustCodeGenerator {
             let curr_generated_module = self.module_map.get_mut(&module_path.join("/")).unwrap();
             // now we will import each struct in the module
             for record in &module.records {
-                curr_generated_module.insert_record(record, &self.dependency, &self.target_dir)?;
+                curr_generated_module.insert_record(
+                    record,
+                    &self.dependency,
+                    &self.target_dir.to_str().unwrap(), // as we know path will be valid utf-8
+                )?;
             }
         }
         Ok("".to_string())
     }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{
-        code_generator::{
-            CodeGenerator,
-            rust::writer::{GeneratedModule, RustCodeGenerator},
-        },
-        compiler::build_ast,
-    };
-    use std::{
-        collections::HashMap,
-        fs,
-        path::{Path, PathBuf},
-    };
-
-    // #[test]
-    // fn test_rust_code_generation() {
-    //     let doc = build_ast(Path::new("./test.jute"));
-    //     let mut code_generator = RustCodeGenerator::new(doc);
-    //     code_generator.write(Path::new("./out.rs")).unwrap();
-    //     eprintln!("code generated");
-    // }
-
-    #[test]
-    fn test_debug() {}
 }

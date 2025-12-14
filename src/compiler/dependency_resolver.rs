@@ -1,9 +1,9 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    error::Error,
-};
+use std::collections::{HashMap, VecDeque};
 
-use crate::compiler::ast::{Doc, Type};
+use crate::{
+    compiler::ast::{Doc, Type},
+    errors::{JuteError, TypeValidationError},
+};
 
 // function will check if the type specified valid or not
 fn is_valid_type(
@@ -12,7 +12,7 @@ fn is_valid_type(
     adj_list: &mut HashMap<String, Vec<String>>,
     parrent_record: &str,
     dependency_map: &mut HashMap<String, String>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), TypeValidationError> {
     match t {
         // all primitive types are allways valid
         Type::Boolean
@@ -73,12 +73,12 @@ fn is_valid_type(
                     }
                 }
                 if match_count == 0 {
-                    return Err(format!("No match found for type {:?}", t).into());
+                    return Err(TypeValidationError::AmbigousType);
                 }
                 if match_count == 1 {
                     return Ok(());
                 } else {
-                    return Err(format!("Ambigous name {:?}, multiple reference found", t).into());
+                    return Err(TypeValidationError::AmbigousType);
                 }
             } else {
                 // we will have to search for fully qualifoed name
@@ -100,13 +100,13 @@ fn is_valid_type(
                         }
                     }
                 }
-                return Err(format!("No match found for type {:?}", t).into());
+                return Err(TypeValidationError::UnknownType);
             }
         }
     }
 }
 
-pub fn resolve_dependencies(docs: &Vec<Doc>) -> Result<HashMap<String, String>, Box<dyn Error>> {
+pub fn resolve_dependencies(docs: &Vec<Doc>) -> Result<HashMap<String, String>, JuteError> {
     let mut src_to_docs = HashMap::new();
     for doc in docs {
         src_to_docs.insert(doc.src.clone(), doc);
@@ -120,7 +120,7 @@ pub fn resolve_dependencies(docs: &Vec<Doc>) -> Result<HashMap<String, String>, 
             .iter()
             .map(|included_src| {
                 *src_to_docs.get(included_src).expect(&format!(
-                    "Module {}, not found, included in {}",
+                    "Module {:?}, not found, included in {:?}",
                     included_src, doc.src
                 ))
             })
@@ -138,22 +138,33 @@ pub fn resolve_dependencies(docs: &Vec<Doc>) -> Result<HashMap<String, String>, 
                         &format!("{}.{}", module.name, record.name),
                         &mut dependency_map,
                     ) {
-                        return Err(format!(
-                            "Invalid Field {}, in record {}, in module {}, in file {}, error : {}",
-                            field.name, record.name, module.name, doc.src, e
-                        )
-                        .into());
+                        return Err(match e {
+                            TypeValidationError::UnknownType => JuteError::UnknownType {
+                                name: field.name.clone(),
+                                _type: field._type.clone(),
+                                record: record.name.clone(),
+                                module: module.name.clone(),
+                                file: doc.src.clone(),
+                            },
+                            TypeValidationError::AmbigousType => JuteError::AmbiguousType {
+                                name: field.name.clone(),
+                                _type: field._type.clone(),
+                                record: record.name.clone(),
+                                module: module.name.clone(),
+                                file: doc.src.clone(),
+                            },
+                        });
                     }
                 }
             }
         }
     }
     // no we will have we have a edges going from one node to another now we will check if there is any references
-    topological_sort(&adj_list)?;
+    topological_sort(&adj_list).map_err(|e| return JuteError::CircularDependency { cycle: e })?;
     Ok(dependency_map)
 }
 
-fn topological_sort(adj_list: &HashMap<String, Vec<String>>) -> Result<(), Box<dyn Error>> {
+fn topological_sort(adj_list: &HashMap<String, Vec<String>>) -> Result<(), String> {
     // we will check for all the edges
     let mut inorder = HashMap::new();
     for (key, value) in adj_list {
@@ -183,15 +194,11 @@ fn topological_sort(adj_list: &HashMap<String, Vec<String>>) -> Result<(), Box<d
         }
     }
     if !inorder.is_empty() {
-        return Err(format!(
-            "Curcullar dependency found for modules {}",
-            inorder
-                .into_iter()
-                .map(|(key, _value)| key.to_string())
-                .collect::<Vec<String>>()
-                .join(",")
-        )
-        .into());
+        return Err(inorder
+            .into_iter()
+            .map(|(key, _value)| key.to_string())
+            .collect::<Vec<String>>()
+            .join(","));
     }
     Ok(())
 }

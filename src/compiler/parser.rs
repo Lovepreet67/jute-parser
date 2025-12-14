@@ -1,28 +1,31 @@
-use crate::compiler::{
-    ast::{Class, Doc, Field, Module, Type},
-    lexer::Lexer,
-    state_machine::StateMachine,
-    token::Token,
+use crate::{
+    compiler::{
+        ast::{Class, Doc, Field, Module, Type},
+        lexer::Lexer,
+        state_machine::StateMachine,
+        token::Token,
+    },
+    errors::JuteError,
 };
-use std::error::Error;
+use std::path::{Path, PathBuf};
 
 pub struct Parser {
-    src_file_location: String,
+    src_file_location: PathBuf,
     sm: StateMachine,
     namespace: String,
     next_token: Option<Token>,
 }
 
 impl Parser {
-    pub fn new(src_file_location: String, input: String) -> Self {
+    pub fn new(src_file_location: PathBuf, input: String) -> Result<Self, JuteError> {
         let mut sm = StateMachine::new(Lexer::new(input));
-        sm.start();
-        Parser {
+        sm.start()?;
+        Ok(Parser {
             src_file_location,
             sm,
             namespace: "".to_string(),
             next_token: None,
-        }
+        })
     }
     // same as next token from the state machine it just skip the comment tokens
     fn next_token(&mut self) -> Option<Token> {
@@ -49,26 +52,39 @@ impl Parser {
     }
     // helper function for expect
 
-    fn expect(&mut self, token: Token) -> Result<(), Box<dyn Error>> {
+    fn expect(&mut self, token: Token) -> Result<(), JuteError> {
         match self.next() {
             Some(x) if x == token => Ok(()),
-            x => Err(format!("Error happend expexted {:?}, found {:?}", token, x).into()),
+            x => Err(JuteError::UnexpectedToken {
+                token: x,
+                message: format!("Expecting token {:?}", token),
+            }),
         }
     }
 
-    fn expect_identifier(&mut self) -> Result<String, Box<dyn Error>> {
+    fn expect_identifier(&mut self) -> Result<String, JuteError> {
         match self.next() {
             Some(Token::Identifier(x)) => Ok(x),
             Some(Token::QuotedString(x)) => Ok(x),
-            x => Err(format!("Error happend expexted identifier, found {:?}", x).into()),
+            x => {
+                return Err(JuteError::UnexpectedToken {
+                    token: x,
+                    message: format!("Expecting an identifier"),
+                });
+            }
         }
     }
 
-    fn parse_include(&mut self) -> Result<String, Box<dyn Error>> {
+    fn parse_include(&mut self) -> Result<PathBuf, JuteError> {
         self.expect(Token::Include)?;
-        self.expect_identifier()
+        let relative_include_path = self.expect_identifier()?;
+        let base_dir = self
+            .src_file_location
+            .parent()
+            .unwrap_or_else(|| Path::new("."));
+        Ok(base_dir.join(relative_include_path))
     }
-    fn parse_type(&mut self) -> Result<Type, Box<dyn Error>> {
+    fn parse_type(&mut self) -> Result<Type, JuteError> {
         match self.peek() {
             Some(Token::Identifier(_)) => {
                 // this means this type is referance to some other record
@@ -76,23 +92,23 @@ impl Parser {
             }
             Some(Token::Vector) => self.parse_vector(),
             Some(Token::Map) => self.parse_map(),
-            Some(Token::EOF) => Err("Unexpected end of file".into()),
+            Some(Token::EOF) => Err(JuteError::UnexpectedEndOfFile),
             Some(x) => {
                 let tor = x.to_premitive_type();
                 self.next();
                 tor
             }
-            None => Err("Token not Found".into()),
+            None => Err(JuteError::UnexpectedEndOfTokenStream),
         }
     }
-    fn parse_vector(&mut self) -> Result<Type, Box<dyn Error>> {
+    fn parse_vector(&mut self) -> Result<Type, JuteError> {
         self.expect(Token::Vector)?;
         self.expect(Token::LAngleBrace)?;
         let t1 = self.parse_type()?;
         self.expect(Token::RAngleBrace)?;
         Ok(Type::Vector(Box::new(t1)))
     }
-    fn parse_map(&mut self) -> Result<Type, Box<dyn Error>> {
+    fn parse_map(&mut self) -> Result<Type, JuteError> {
         self.expect(Token::Map)?;
         self.expect(Token::LAngleBrace)?;
         let t1 = self.parse_type()?;
@@ -101,7 +117,7 @@ impl Parser {
         self.expect(Token::RAngleBrace)?;
         Ok(Type::Map(Box::new(t1), Box::new(t2)))
     }
-    fn parse_class_ref(&mut self) -> Result<Type, Box<dyn Error>> {
+    fn parse_class_ref(&mut self) -> Result<Type, JuteError> {
         let ident_val = self.expect_identifier()?;
         let last_index = ident_val.rfind('.').unwrap_or(0);
         let (mut namespace, classname) = if last_index > 0 {
@@ -117,7 +133,7 @@ impl Parser {
             namespace: namespace.to_string(),
         })
     }
-    fn parse_field(&mut self) -> Result<Field, Box<dyn Error>> {
+    fn parse_field(&mut self) -> Result<Field, JuteError> {
         let field_type = self.parse_type()?;
         let field_name = self.expect_identifier()?;
         self.expect(Token::Semicolon)?;
@@ -126,7 +142,7 @@ impl Parser {
             _type: field_type,
         })
     }
-    fn parse_class(&mut self) -> Result<Class, Box<dyn Error>> {
+    fn parse_class(&mut self) -> Result<Class, JuteError> {
         self.expect(Token::Class)?;
         let class_name = self.expect_identifier()?;
         self.expect(Token::LCurrelyBrace)?;
@@ -149,7 +165,7 @@ impl Parser {
         Ok(class)
     }
 
-    fn parse_module(&mut self) -> Result<Module, Box<dyn Error>> {
+    fn parse_module(&mut self) -> Result<Module, JuteError> {
         self.expect(Token::Module)?;
         let module_name = self.expect_identifier()?;
         self.namespace = module_name.clone();
@@ -169,16 +185,23 @@ impl Parser {
                     break;
                 }
                 x => {
-                    return Err(format!("Unexpected token {:?} found", x).into());
+                    return Err(JuteError::UnexpectedToken {
+                        token: x.clone(),
+                        message: "Expected module end or new class start".to_owned(),
+                    });
                 }
             }
         }
         Ok(md)
     }
 
-    pub fn parse(&mut self) -> Result<Doc, Box<dyn Error>> {
+    pub fn parse(&mut self) -> Result<Doc, JuteError> {
         let mut tor_doc = Doc {
-            src: self.src_file_location.clone(),
+            src: self.src_file_location.canonicalize().map_err(|e| {
+                return JuteError::PathCanonicalizeError {
+                    message: e.to_string(),
+                };
+            })?,
             ..Default::default()
         };
         loop {
@@ -188,7 +211,11 @@ impl Parser {
                 }
                 Some(Token::Include) => {
                     if let Ok(val) = self.parse_include() {
-                        tor_doc.includes.push(val);
+                        tor_doc.includes.push(val.canonicalize().map_err(|e| {
+                            return JuteError::PathCanonicalizeError {
+                                message: e.to_string(),
+                            };
+                        })?);
                     }
                     self.expect(Token::Semicolon)?
                 }
@@ -197,9 +224,16 @@ impl Parser {
                         tor_doc.modules.push(val);
                     }
                 }
-                x => panic!("Tokens Ended other than EOF token {:?}", x),
+                Some(x) => {
+                    return Err(JuteError::UnexpectedToken {
+                        token: Some(x.clone()),
+                        message: "unexpected token found".to_owned(),
+                    });
+                }
+                None => return Err(JuteError::UnexpectedEndOfTokenStream),
             }
         }
+
         Ok(tor_doc)
     }
 }

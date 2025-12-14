@@ -1,7 +1,6 @@
-use crate::compiler::ast::Type;
-use std::error::Error;
+use crate::{compiler::ast::Type, errors::JuteError};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Token {
     Error(String),
     SingleLineComment(String),
@@ -42,7 +41,7 @@ impl Token {
             "long" => Some(Token::LongInt),
             "float" => Some(Token::Float),
             "double" => Some(Token::Double),
-            "ustring" => Some(Token::RString),
+            "ustring" | "string" => Some(Token::RString),
             "buffer" => Some(Token::Buffer),
             "vector" => Some(Token::Vector),
             "map" => Some(Token::Map),
@@ -56,7 +55,7 @@ impl Token {
             _ => None,
         }
     }
-    pub fn to_premitive_type(&self) -> Result<Type, Box<dyn Error>> {
+    pub fn to_premitive_type(&self) -> Result<Type, JuteError> {
         match self {
             Token::Int => Ok(Type::Int),
             Token::LongInt => Ok(Type::Long),
@@ -66,7 +65,7 @@ impl Token {
             Token::Buffer => Ok(Type::Buffer),
             Token::Bool => Ok(Type::Boolean),
             Token::RString => Ok(Type::UString),
-            _ => Err("Token not convertable to Non premitive".into()),
+            x => Err(JuteError::InvalidConversionToPremitive { token: x.clone() }),
         }
     }
 }

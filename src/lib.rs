@@ -1,55 +1,121 @@
+//! Jute code generation entry point.
+//!
+//! This crate provides a high-level API to:
+//! - Parse Jute schema files
+//! - Resolve inter-module dependencies
+//! - Generate Rust code from the resolved AST
+//!
+//! The main entry point is [`JuteGenerator`].
+
 use crate::{
     code_generator::{CodeGenerator, rust::writer::RustCodeGenerator},
     compiler::{ast::Module, build_ast, dependency_resolver::resolve_dependencies},
+    errors::JuteError,
 };
-use std::{error::Error, path::Path};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 pub mod code_generator;
 pub mod compiler;
+pub mod errors;
 
+/// High-level Jute code generation driver.
+///
+/// `JuteGenerator` follows a builder-style API and is responsible for:
+/// 1. Collecting source `.jute` files
+/// 2. Parsing them into ASTs
+/// 3. Resolving type and module dependencies
+/// 4. Invoking the language-specific code generator (Rust)
+///
+/// # Example
+///
+/// ```no_run
+/// use jute::JuteGenerator;
+///
+/// JuteGenerator::new()
+///     .add_src_file(schema_path1)
+///     .add_src_file(schema_path2)
+///     .add_out_dir(out_dir_path)
+///     .generate()
+///     .unwrap();
+/// ```
 #[derive(Default)]
 pub struct JuteGenerator {
-    pub out_dir: Option<String>,
-    pub src_files: Vec<String>,
+    /// Output directory where generated code will be written.
+    ///
+    /// If not provided, code generation defaults to the current(src) directory.
+    pub out_dir: Option<PathBuf>,
+    /// List of input Jute schema files.
+    pub src_files: Vec<PathBuf>,
 }
 impl JuteGenerator {
+    /// Creates a new empty `JuteGenerator`.
     pub fn new() -> Self {
         Self {
             out_dir: None,
             src_files: Vec::new(),
         }
     }
-    pub fn add_src_file(mut self, file_path: String) -> Self {
+
+    /// Adds a Jute source file to the generator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the same file is added more than once.
+    pub fn add_src_file<P: AsRef<Path>>(mut self, file_path: P) -> Self {
+        let file_path = file_path.as_ref().to_path_buf().canonicalize().unwrap();
         if self.src_files.iter().any(|x| **x == file_path) {
             panic!("Same file added multiple times");
         }
         self.src_files.push(file_path);
         self
     }
-    pub fn add_out_dir(mut self, out_dir: String) -> Self {
+    /// Sets the output directory for generated code.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the output directory is already set.
+    pub fn add_out_dir<P: AsRef<Path>>(mut self, out_dir: P) -> Self {
         if self.out_dir.is_some() {
             panic!("Output dir alreay assigned");
         }
+        let out_dir = out_dir.as_ref().to_path_buf();
         self.out_dir = Some(out_dir);
         self
     }
-    pub fn generate(self) -> Result<(), Box<dyn Error>> {
+
+    /// Executes the full code generation pipeline.
+    ///
+    /// This method:
+    /// 1. Parses all provided `.jute` files into AST documents
+    /// 2. Resolves cross-module and cross-file dependencies
+    /// 3. Merges all modules into a single collection
+    /// 4. Generates Rust code into the configured output directory
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Parsing fails
+    /// - Dependency resolution fails
+    /// - Code generation fails
+    pub fn generate(self) -> Result<(), JuteError> {
         // this function will handle all the generation logic
         // we will parse all the files one by one and push docs in the vector
         let mut docs = Vec::new();
         for file in self.src_files {
-            let doc = build_ast(Path::new(&file));
+            let doc = build_ast(Path::new(&file))?;
             docs.push(doc);
         }
         let dependencies = resolve_dependencies(&docs)?;
-        eprint!("dependencies {:?}", dependencies);
         let merged_modules: Vec<Module> =
             docs.into_iter().map(|doc| doc.modules).flatten().collect();
         // now we have a array of docs now we will validate this doc
         RustCodeGenerator::new(
             merged_modules,
             dependencies,
-            self.out_dir.unwrap_or("".to_string()),
+            self.out_dir.unwrap_or(PathBuf::from_str("").unwrap()), // unwrap will be never called
         )
         .generate()?;
         Ok(())
@@ -63,8 +129,8 @@ mod test {
     fn root_test() {
         // first we will read the file to string
         let jg = JuteGenerator::new();
-        jg.add_src_file("./jute_test_schema/test1.jute".to_string())
-            .add_src_file("./jute_test_schema/test2.jute".to_string())
+        jg.add_src_file("./jute_test_schema/test1.jute")
+            .add_src_file("./jute_test_schema/test2.jute")
             .add_out_dir("generated".to_string())
             .generate()
             .unwrap();

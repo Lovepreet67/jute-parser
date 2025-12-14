@@ -1,4 +1,4 @@
-include "./jute_test_schema/test1.jute";
+include "./test1.jute";
 module proto.connect.req {
     class Request {
         int protocolVersion;
