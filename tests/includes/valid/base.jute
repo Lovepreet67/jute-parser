@@ -1,0 +1,11 @@
+module common.types {
+    class Header {
+        int version;
+        long zxid;
+    }
+
+    class AuthInfo {
+        int scheme;
+        buffer data;
+    }
+}

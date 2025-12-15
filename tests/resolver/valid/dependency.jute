@@ -1,0 +1,13 @@
+module graph {
+    class A {
+        int x;
+    }
+
+    class B {
+        A a;
+    }
+
+    class C {
+        B b;
+    }
+}

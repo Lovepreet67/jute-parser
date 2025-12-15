@@ -1,0 +1,5 @@
+module invalid {
+    class Broken {
+        MissingType field;
+    }
+}

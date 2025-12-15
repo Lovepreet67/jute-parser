@@ -42,7 +42,7 @@ impl GeneratedModule {
             Type::Double => Cow::Borrowed("f64"),
             Type::Boolean => Cow::Borrowed("bool"),
             Type::Byte => Cow::Borrowed("u8"),
-            Type::Buffer => Cow::Borrowed("std::vec::Vec<u8>"),
+            Type::Buffer => Cow::Borrowed("std::vec::Vec::<u8>"),
             Type::UString => Cow::Borrowed("String"),
             Type::Class { name, namespace } => {
                 let resloved_path = dependency_map
@@ -51,11 +51,12 @@ impl GeneratedModule {
                         self.name, record_name, namespace, name
                     ))
                     .unwrap();
-                let mut path = format!("jute");
-                if !target_dir.is_empty() {
-                    path.push_str("::");
-                    path.push_str(target_dir);
-                }
+                let mut path = format!("crate");
+                // we will not use target dir as module path at all
+                // if !target_dir.is_empty() {
+                //     path.push_str("::");
+                //     path.push_str(target_dir);
+                // }
                 for item in resloved_path.split(".") {
                     path.push_str("::");
                     path.push_str(item);
@@ -63,11 +64,11 @@ impl GeneratedModule {
                 Cow::Owned(path)
             }
             Type::Vector(t) => Cow::Owned(format!(
-                "std::vec::Vec<{}>",
+                "std::vec::Vec::<{}>",
                 self.get_field_type(t, dependency_map, target_dir, record_name)
             )),
             Type::Map(t1, t2) => Cow::Owned(format!(
-                "std::collections::Hashmap<{},{}>",
+                "std::collections::HashMap::<{},{}>",
                 self.get_field_type(t1, dependency_map, target_dir, record_name),
                 self.get_field_type(t2, dependency_map, target_dir, record_name)
             )),
@@ -94,7 +95,7 @@ impl GeneratedModule {
         code.push_str("/*This is a auto generated code based on the jute file provided*/\n");
         writeln!(
             code,
-            "#[derive(Default,Clone)]\n\tpub struct {} {{",
+            "#[derive(Clone,Debug,Default,PartialEq)]\npub struct {} {{",
             get_record_name(&record.name)
         )?;
         for field in &record.fields {
@@ -138,7 +139,7 @@ impl GeneratedModule {
         )?;
         writeln!(
             code,
-            "\tfn serailaize<W:Write>(&self, out:&mut W)->Result<(),Box<dyn Error>> {{"
+            "\tfn serialize<W:std::io::Write>(&self, out:&mut W)->Result<(),jute::errors::JuteError> {{"
         )?;
         for field in &record.fields {
             writeln!(
@@ -147,12 +148,13 @@ impl GeneratedModule {
                 jute_field_to_rust.get(&field.name).unwrap().0
             )?;
         }
+        writeln!(code, "\t\tOk(())")?;
         writeln!(code, "\t\t}}")?;
         writeln!(
             code,
-            "\tfn deserailaize<R:Read>( out:&mut R)->Result<Self,Box<dyn Error>> {{"
+            "\tfn deserialize<R:std::io::Read>( bytes:&mut R)->Result<Self,jute::errors::JuteError> {{"
         )?;
-        writeln!(code, "\t\tSelf {{")?;
+        writeln!(code, "\t\tOk(Self {{")?;
         for field in &record.fields {
             writeln!(
                 code,
@@ -161,7 +163,7 @@ impl GeneratedModule {
                 jute_field_to_rust.get(&field.name).unwrap().1,
             )?;
         }
-        writeln!(code, "\t\t}}")?;
+        writeln!(code, "\t\t}})")?;
         writeln!(code, "\t}}")?;
 
         writeln!(code, "}}")?;
@@ -200,7 +202,7 @@ impl CodeGenerator for RustCodeGenerator {
     fn generate(&mut self) -> Result<String, JuteError> {
         for module in &self.modules {
             let module_path: Vec<&str> = module.name.split(|c| c == '.').collect();
-            for (i, module) in module_path.iter().enumerate() {
+            for (i, _) in module_path.iter().enumerate() {
                 let current_module = module_path[0..i + 1].join("/");
                 if !self.module_map.contains_key(&current_module) {
                     // means module is already there we just check

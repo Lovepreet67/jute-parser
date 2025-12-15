@@ -1,0 +1,20 @@
+module serialization.pem {
+    // ---- Primitive coverage ----
+    class Primitives {
+        boolean flag;
+        byte small;
+        int count;
+        long total;
+        float ratio;
+        double precise;
+        string name;
+        buffer raw;
+    }
+
+    // ---- Simple referenced record ----
+    class Address {
+        string street;
+        string city;
+        int zip;
+    }
+}

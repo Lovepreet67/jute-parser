@@ -1,0 +1,8 @@
+include "types.jute";
+
+module api {
+    class Request {
+        common.Header header;
+        int timeout;
+    }
+}

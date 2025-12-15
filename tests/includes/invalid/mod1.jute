@@ -1,0 +1,5 @@
+module mod1 {
+    class Duplicate {
+        int a;
+    }
+}

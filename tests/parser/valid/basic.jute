@@ -1,0 +1,7 @@
+module basic {
+    class Person {
+        int id;
+        string name;
+        boolean active;
+    }
+}

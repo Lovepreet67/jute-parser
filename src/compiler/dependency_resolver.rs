@@ -73,7 +73,7 @@ fn is_valid_type(
                     }
                 }
                 if match_count == 0 {
-                    return Err(TypeValidationError::AmbigousType);
+                    return Err(TypeValidationError::UnknownType);
                 }
                 if match_count == 1 {
                     return Ok(());
@@ -167,7 +167,7 @@ pub fn resolve_dependencies(docs: &Vec<Doc>) -> Result<HashMap<String, String>, 
 fn topological_sort(adj_list: &HashMap<String, Vec<String>>) -> Result<(), String> {
     // we will check for all the edges
     let mut inorder = HashMap::new();
-    for (key, value) in adj_list {
+    for (_, value) in adj_list {
         for node in value {
             *inorder.entry(node).or_insert(0) += 1;
         }

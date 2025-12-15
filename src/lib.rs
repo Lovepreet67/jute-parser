@@ -33,6 +33,9 @@ pub mod errors;
 ///
 /// ```no_run
 /// use jute::JuteGenerator;
+/// let schema_path1 = "./schema/1.jute";
+/// let schema_path2 = "./schema/2.jute";
+/// let out_dir_path= "generated";
 ///
 /// JuteGenerator::new()
 ///     .add_src_file(schema_path1)
@@ -119,20 +122,5 @@ impl JuteGenerator {
         )
         .generate()?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn root_test() {
-        // first we will read the file to string
-        let jg = JuteGenerator::new();
-        jg.add_src_file("./jute_test_schema/test1.jute")
-            .add_src_file("./jute_test_schema/test2.jute")
-            .add_out_dir("generated".to_string())
-            .generate()
-            .unwrap();
     }
 }

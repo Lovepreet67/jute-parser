@@ -1,0 +1,7 @@
+module containers {
+    class Collections {
+        vector<int> numbers;
+        map<int, string> idToName;
+        vector<map<int, long>> complex;
+    }
+}

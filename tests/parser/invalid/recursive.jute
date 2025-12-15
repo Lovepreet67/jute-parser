@@ -1,0 +1,6 @@
+module invalid {
+    class Node {
+        int value;
+        Node next;
+    }
+}

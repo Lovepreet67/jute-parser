@@ -1,0 +1,13 @@
+include "base.jute";
+
+module requests {
+    class PingRequest {
+        common.types.Header header;
+        int timeout;
+    }
+
+    class AuthRequest {
+        common.types.AuthInfo auth;
+        boolean readOnly;
+    }
+}

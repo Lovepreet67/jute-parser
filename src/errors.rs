@@ -9,6 +9,7 @@ pub enum TypeValidationError {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum JuteError {
     // used errors
     InvalidConversionToPremitive {
@@ -89,5 +90,52 @@ impl From<std::fmt::Error> for JuteError {
 impl From<std::string::FromUtf8Error> for JuteError {
     fn from(err: std::string::FromUtf8Error) -> Self {
         JuteError::Utf8(err)
+    }
+}
+
+impl fmt::Display for JuteError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            JuteError::UnexpectedChar { c, message } => {
+                write!(f, "unexpected character '{}': {}", c, message)
+            }
+
+            JuteError::UnexpectedToken { token, message } => {
+                write!(f, "unexpected token {:?}: {}", token, message)
+            }
+
+            JuteError::UnknownType {
+                name,
+                record,
+                module,
+                file,
+                ..
+            } => write!(
+                f,
+                "unknown type '{}' in record '{}' (module '{}') at {:?}",
+                name, record, module, file
+            ),
+
+            JuteError::AmbiguousType {
+                name,
+                record,
+                module,
+                file,
+                ..
+            } => write!(
+                f,
+                "ambiguous type '{}' in record '{}' (module '{}') at {:?}",
+                name, record, module, file
+            ),
+
+            JuteError::CircularDependency { cycle } => {
+                write!(f, "circular dependency detected: {}", cycle)
+            }
+
+            JuteError::Io(e) => write!(f, "io error: {}", e),
+            JuteError::Fmt(e) => write!(f, "formatting error: {}", e),
+
+            _ => write!(f, "{:?}", self),
+        }
     }
 }

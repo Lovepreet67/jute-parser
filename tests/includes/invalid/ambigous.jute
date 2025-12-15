@@ -1,0 +1,8 @@
+include "mod1.jute";
+include "mod2.jute";
+
+module test {
+    class UsesDuplicate {
+        Duplicate value;
+    }
+}

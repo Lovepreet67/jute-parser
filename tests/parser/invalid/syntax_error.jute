@@ -1,0 +1,5 @@
+module invalid {
+    class Bad {
+        int value
+    }
+}

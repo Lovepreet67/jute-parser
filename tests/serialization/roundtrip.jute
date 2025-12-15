@@ -1,0 +1,38 @@
+include "./pem.jute";
+module serialization {
+
+    // ---- Nested + vector ----
+    class Person {
+        int id;
+        string name;
+        boolean active;
+        Address address;
+        vector<string> phone_numbers;
+    }
+
+    // ---- Map + vector of records ----
+    class Department {
+        int id;
+        string name;
+        map<string, string> metadata;
+        vector<Person> members;
+    }
+
+    // ---- Deep nesting + mixed types ----
+    class Company {
+        int id;
+        string name;
+        Primitives stats;
+        Address headquarters;
+        vector<Department> departments;
+        map<string, Person> key_people;
+    }
+
+    // ---- Aggregation record (top-level test object) ----
+    class Organization {
+        int org_id;
+        string org_name;
+        vector<Company> companies;
+        map<string, Company> indexed_companies;
+    }
+}

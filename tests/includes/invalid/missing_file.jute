@@ -1,0 +1,7 @@
+include "does_not_exist.jute";
+
+module test {
+    class A {
+        int x;
+    }
+}
