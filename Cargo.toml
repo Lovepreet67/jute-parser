@@ -3,6 +3,12 @@ name = "jute-parser"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+description = "A Rust code generator and parser for Apache Jute schemas"
+repository = "https://github.com/Lovepreet67/jute-parser"
+readme = "README.md"
+keywords = ["jute", "idl", "codegen", "serialization", "zookeeper"]
+categories = ["development-tools"]
+exclude = [".cargo_vcs_info.json", "Cargo.lock", "examples/**/Cargo.lock"]
 
 [lib]
 name = "jute"
