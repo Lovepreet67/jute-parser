@@ -7,11 +7,74 @@ use std::{
 
 use crate::errors::JuteError;
 
-pub mod utilities;
-pub mod writer;
+pub(crate) mod utilities;
+pub(crate) mod writer;
 
+/// Trait for types that can be serialized to and deserialized from
+/// the Jute binary encoding format.
+///
+/// `JuteSerializable` is implemented by all structs generated from
+/// Jute schema files. It provides low-level, streaming-based
+/// serialization and deserialization APIs that follow the
+/// Apache Jute wire format.
+///
+/// # Design
+///
+/// - Serialization writes data sequentially to any [`Write`] implementation
+///   (for example `Vec<u8>`, `File`, or `TcpStream`).
+/// - Deserialization reads data sequentially from any [`Read`] implementation.
+/// - No buffering is performed internally; callers may wrap streams in
+///   buffered readers or writers if needed.
+///
+/// This design allows Jute-generated types to be used efficiently in
+/// both file-based and network-based protocols.
+///
+/// # Example
+///
+/// ``` no_run
+/// use std::io::Cursor;
+/// use jute::JuteSerializable;
+///
+/// // x can be of any type that implement JuteSerializable
+/// let x = "test".to_string();
+///
+/// // Serialize into a byte buffer
+/// let mut buffer = Vec::new();
+/// x.serialize(&mut buffer).unwrap();
+///
+/// // Deserialize from the buffer
+/// let mut cursor = Cursor::new(buffer);
+/// let x = String::deserialize(&mut cursor).unwrap();
+/// ```
+///
+/// # Errors
+///
+/// Both serialization and deserialization return [`JuteError`] if:
+///
+/// - An I/O error occurs while reading or writing
+/// - The input stream is malformed or truncated
+/// - The encoded data violates the Jute type rules
+///
+/// # Notes
+///
+/// - Implementations must read and write fields in the exact order
+///   defined in the Jute schema.
+/// - The `deserialize` method assumes the input stream is positioned
+///   at the start of a valid Jute-encoded value.
+///
+/// [`Read`]: std::io::Read
+/// [`Write`]: std::io::Write
 pub trait JuteSerializable: Sized {
+    /// Serializes `self` into the given output stream using
+    /// the Jute binary encoding format.
+    ///
+    /// Implementations must write fields in schema order.
     fn serialize<W: Write>(&self, out: &mut W) -> Result<(), JuteError>;
+    /// Deserializes a value of this type from the given input stream
+    /// using the Jute binary encoding format.
+    ///
+    /// The stream must be positioned at the start of a valid
+    /// encoded value.
     fn deserialize<R: Read>(bytes: &mut R) -> Result<Self, JuteError>;
 }
 

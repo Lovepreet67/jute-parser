@@ -1,16 +1,43 @@
-//! Jute code generation entry point.
+//! # Jute
+//!
+//! Jute is a **schema-driven code generator** for Rust, inspired by
+//! Apache ZooKeeper’s *Jute* serialization format.
 //!
 //! This crate provides a high-level API to:
-//! - Parse Jute schema files
-//! - Resolve inter-module dependencies
-//! - Generate Rust code from the resolved AST
 //!
-//! The main entry point is [`JuteGenerator`].
+//! - Parse `.jute` schema files into an abstract syntax tree (AST)
+//! - Resolve cross-file and cross-module type dependencies
+//! - Validate schemas (unknown types, ambiguities, cycles, etc.)
+//! - Generate idiomatic, type-safe Rust code
+//! - Generate binary serialization and deserialization logic
+//!
+//! The primary entry point to the API is [`JuteGenerator`], which
+//! orchestrates the full pipeline from schema parsing to code generation.
+//!
+//! ## Typical Workflow
+//!
+//! 1. Author one or more `.jute` schema files
+//! 2. Feed them into [`JuteGenerator`]
+//! 3. Generate Rust code into a target directory
+//! 4. Compile and use the generated types directly in your application
+//!
+//! ## Example
+//!
+//! ```no_run
+//! use jute::JuteGenerator;
+//!
+//! JuteGenerator::new()
+//!     .add_src_file("schema/common.jute")
+//!     .add_src_file("schema/model.jute")
+//!     .add_out_dir("generated")
+//!     .generate()
+//!     .expect("Jute code generation failed");
+//! ```
+//!
 
 use crate::{
     code_generator::{CodeGenerator, rust::writer::RustCodeGenerator},
     compiler::{ast::Module, build_ast, dependency_resolver::resolve_dependencies},
-    errors::JuteError,
 };
 use std::{
     path::{Path, PathBuf},
@@ -18,8 +45,10 @@ use std::{
 };
 
 pub mod code_generator;
-pub mod compiler;
+pub(crate) mod compiler;
 pub mod errors;
+pub use crate::code_generator::rust::JuteSerializable;
+pub use crate::errors::JuteError;
 
 /// High-level Jute code generation driver.
 ///

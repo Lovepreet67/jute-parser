@@ -26,7 +26,7 @@ fn rust_keyword_mapper(original: &str) -> String {
         original.to_string()
     }
 }
-
+#[warn(dead_code)]
 pub fn get_module_name(original_name: &str) -> String {
     rust_keyword_mapper(original_name)
 }

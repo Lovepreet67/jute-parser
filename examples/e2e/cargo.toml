@@ -1,0 +1,12 @@
+[package]
+name = "jute-e2e"
+version = "0.1.0"
+edition = "2021"
+
+# use jute parser as build dependency if you are using build.rs to generate code
+[build-dependencies]
+jute-parser = { path = "../.." }
+
+# we need to add this as dependency because we have to bring the JuteSerializable trait in scope
+[dependencies]
+jute-parser = { path = "../../" }

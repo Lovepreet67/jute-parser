@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub struct Lexer {
+pub(crate) struct Lexer {
     input: String,
     start: usize,
     pos: usize,

@@ -56,7 +56,7 @@ impl Parser {
         match self.next() {
             Some(x) if x == token => Ok(()),
             x => Err(JuteError::UnexpectedToken {
-                token: x,
+                token: Some(format!("{:?}", x)),
                 message: format!("Expecting token {:?}", token),
             }),
         }
@@ -68,7 +68,7 @@ impl Parser {
             Some(Token::QuotedString(x)) => Ok(x),
             x => {
                 return Err(JuteError::UnexpectedToken {
-                    token: x,
+                    token: Some(format!("{:?}", x)),
                     message: format!("Expecting an identifier"),
                 });
             }
@@ -186,7 +186,7 @@ impl Parser {
                 }
                 x => {
                     return Err(JuteError::UnexpectedToken {
-                        token: x.clone(),
+                        token: Some(format!("{:?}", x)),
                         message: "Expected module end or new class start".to_owned(),
                     });
                 }
@@ -226,7 +226,7 @@ impl Parser {
                 }
                 Some(x) => {
                     return Err(JuteError::UnexpectedToken {
-                        token: Some(x.clone()),
+                        token: Some(format!("{:?}", x)),
                         message: "unexpected token found".to_owned(),
                     });
                 }

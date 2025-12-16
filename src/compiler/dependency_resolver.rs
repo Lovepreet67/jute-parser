@@ -141,14 +141,14 @@ pub fn resolve_dependencies(docs: &Vec<Doc>) -> Result<HashMap<String, String>, 
                         return Err(match e {
                             TypeValidationError::UnknownType => JuteError::UnknownType {
                                 name: field.name.clone(),
-                                _type: field._type.clone(),
+                                _type: format!("{:?}", field._type),
                                 record: record.name.clone(),
                                 module: module.name.clone(),
                                 file: doc.src.clone(),
                             },
                             TypeValidationError::AmbigousType => JuteError::AmbiguousType {
                                 name: field.name.clone(),
-                                _type: field._type.clone(),
+                                _type: format!("{:?}", field._type),
                                 record: record.name.clone(),
                                 module: module.name.clone(),
                                 file: doc.src.clone(),

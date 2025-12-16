@@ -2,7 +2,6 @@ use crate::{compiler::ast::Type, errors::JuteError};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Token {
-    Error(String),
     SingleLineComment(String),
     MultiLineComment(String),
     LCurrelyBrace,
@@ -13,7 +12,6 @@ pub enum Token {
     Comma,
     QuotedString(String),
     Identifier(String),
-    Keyword,
     Include,
     Module,
     Class,
@@ -65,7 +63,9 @@ impl Token {
             Token::Buffer => Ok(Type::Buffer),
             Token::Bool => Ok(Type::Boolean),
             Token::RString => Ok(Type::UString),
-            x => Err(JuteError::InvalidConversionToPremitive { token: x.clone() }),
+            x => Err(JuteError::InvalidConversionToPremitive {
+                token: format!("{:?}", x),
+            }),
         }
     }
 }
