@@ -12,3 +12,5 @@ dependencies = [
 [[package]]
 name = "jute-parser"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20e9072d19f427c32ac61dd6898bb1543627240e4f3254c63d3776e4311f2380"
